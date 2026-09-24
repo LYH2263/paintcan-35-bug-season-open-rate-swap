@@ -1,9 +1,5 @@
-"""Re-resolve seasonal coverage for history rows and window saves."""
+"""历史记录读取：升数与所用涂布率在写入时即钉选，只读打开不得重算或改写。"""
 import json
-from app.engines.estimate import estimate_room
-from app.engines.paint_volume import paint_liters
-from app.engines.season import resolve_coverage
-from app.repositories import openings, rooms, settings
 
 
 def _parse(raw):
@@ -15,40 +11,23 @@ def _parse(raw):
         return {}
 
 
-def resolve_for_row(conn, row):
-    inp = _parse(row.get("input_json") if "input_json" in row else row.get("input"))
+def pinned_result(row):
+    """返回写入时落库的结果（coverage/coverage_source/liters 已钉选）。
+
+    不按当前季节窗或默认设置重新解析——改窗口、停用窗口都不得带跑旧条。
+    """
     res = _parse(row.get("result_json") if "result_json" in row else row.get("result"))
-    work_date = inp.get("work_date") or res.get("work_date")
-    def_cov, def_ct = settings.coverage_coats(conn)
-    window = settings.season_window(conn)
-    cov, source = resolve_coverage(work_date, window, None, def_cov)
-    ct = int(inp.get("coats") or res.get("coats") or def_ct)
-    net = res.get("net_m2")
-    if net is None:
-        return res
-    vol = paint_liters(float(net), float(cov), ct)
-    out = dict(res)
-    out["coverage"] = vol["coverage"]
-    out["coats"] = vol["coats"]
-    out["liters"] = vol["liters"]
-    out["coverage_source"] = source
-    return out
+    inp = _parse(row.get("input_json") if "input_json" in row else row.get("input"))
+    # 仅在老数据缺字段时用落库入参补齐展示口径，仍不做任何重算。
+    if "coverage_source" not in res and "coverage_source" in inp:
+        res["coverage_source"] = inp["coverage_source"]
+    if "work_date" not in res and "work_date" in inp:
+        res["work_date"] = inp["work_date"]
+    return res
 
 
 def decorate_history_row(conn, row):
     item = dict(row)
-    item["result"] = resolve_for_row(conn, row)
+    item["result"] = pinned_result(row)
     item["input"] = _parse(row.get("input_json"))
     return item
-
-
-def rewrite_runs_with_window(conn):
-    rows = conn.execute("SELECT * FROM calc_runs").fetchall()
-    for row in rows:
-        d = dict(row)
-        fresh = resolve_for_row(conn, d)
-        conn.execute(
-            "UPDATE calc_runs SET result_json=? WHERE id=?",
-            (json.dumps(fresh, ensure_ascii=False), d["id"]),
-        )
-    conn.commit()

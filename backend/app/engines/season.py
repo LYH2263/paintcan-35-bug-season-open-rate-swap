@@ -57,8 +57,3 @@ def resolve_coverage(work_date, window, request_coverage, default_coverage):
     if request_coverage is not None:
         return float(request_coverage), "request"
     return float(default_coverage), "default"
-
-
-def resolve_coverage_for_work_date(work_date, window, default_coverage):
-    """Alias used by history replay paths."""
-    return resolve_coverage(work_date, window, None, default_coverage)
