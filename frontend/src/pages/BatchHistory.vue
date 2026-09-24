@@ -26,5 +26,5 @@ onMounted(async () => {
   <td>{{ dash(h.result.liters) }}</td>
 </tr>
 </table>
-<p class="muted">升数按当前季节窗与施工日重新解析。</p>
+<p class="muted">所用涂布率与升数为写入时钉选口径，不再随后续季节窗配置变动。</p>
 </div></template>

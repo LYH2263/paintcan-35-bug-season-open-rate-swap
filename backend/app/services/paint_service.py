@@ -18,8 +18,6 @@ class PaintService:
     def save_season_window(self, enabled, start_md, end_md, coverage):
         start, end, cov = validate_window(start_md, end_md, coverage)
         settings.save_season_window(self._c, enabled, start, end, cov)
-        from app.services.season_replay import rewrite_runs_with_window
-        rewrite_runs_with_window(self._c)
         return settings.season_window(self._c)
     def history(self, limit=50):
         from app.services.season_replay import decorate_history_row
